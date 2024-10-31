@@ -60,7 +60,6 @@ public class AiService {
         String prompt = "Analyze the provided image and convert any code present into actual programming code with correct formatting." + "For the very first sentence of your output, put the name of the detected programming language as follows 'language: Java (for example)'" + " If no recognizable code is found, return the message: 'No code was recognized.'" + " Ensure that the output matches the structure, syntax, and style of the identified programming language.";
         if (ifComments) prompt += ". Also provide in-code comments for the code";
 
-        // Create Vertex AI client with credentials
         try (VertexAI vertexAI = new VertexAI("double-vehicle-437122-a2", "us-central1")) {
             GenerativeModel model = new GenerativeModel("gemini-1.5-flash-002", vertexAI);
             GenerateContentResponse response = model.generateContent(ContentMaker.fromMultiModalData(PartMaker.fromMimeTypeAndData("image/png", urlToByteArray(originalFileName)), prompt));
