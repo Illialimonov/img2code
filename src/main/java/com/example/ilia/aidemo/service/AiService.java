@@ -47,13 +47,12 @@ public class AiService {
 
 
     public AiResponse photoToCodeFROMURL(MultipartFile url, Optional<String> comments, Optional<String> fingerprint, Authentication authentication) throws IOException, StripeException, InterruptedException {
-        String originalFileName = null;
         boolean ifComments = false;
         AiResponse aiResponse = new AiResponse();
         double fileSizeInMB = (double) url.getSize() / (1024 * 1024);
 
 
-        originalFileName = storageService.uploadFileToGCS(url);
+        String originalFileName = storageService.uploadFileToGCS(url);
 
         System.out.println(comments);
         if(comments.isPresent()) ifComments = comments.get().equalsIgnoreCase("1");
