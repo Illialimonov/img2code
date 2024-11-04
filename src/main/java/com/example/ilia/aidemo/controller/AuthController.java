@@ -1,7 +1,6 @@
 package com.example.ilia.aidemo.controller;
 
 import com.example.ilia.aidemo.auth.*;
-import com.example.ilia.aidemo.payload.CredetialsField;
 import com.example.ilia.aidemo.payload.NewPassDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
@@ -9,6 +8,7 @@ import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -41,6 +41,8 @@ public class AuthController {
     }
 
 
+
+
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
         service.register(request);
@@ -51,6 +53,12 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthenticationResponse> authenticate(@RequestBody AuthenticationRequest request) {
         return ResponseEntity.ok(service.authenticate(request));
+    }
+
+    @Operation(summary = "before: authenticate")
+    @PostMapping("/loginCOOKIES")
+    public ResponseEntity<AuthenticationResponse> authenticateCOOKIES(@RequestBody AuthenticationRequest request) {
+        return service.authenticateTESTCookies(request);
     }
 
     @Operation(summary = "send the code to email to change the password. Then insert to /changepassword below.")

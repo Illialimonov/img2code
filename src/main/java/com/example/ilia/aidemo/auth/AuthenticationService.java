@@ -18,7 +18,9 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -98,6 +100,53 @@ public class AuthenticationService {
 
         } else {
             throw new UsernameNotFoundException("invalid user request..!!");
+        }
+
+    }
+
+    public ResponseEntity<AuthenticationResponse> authenticateTESTCookies(AuthenticationRequest request) {
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+        );
+
+        if (authentication.isAuthenticated()) {
+            var user = userRepository.findByEmail(request.getEmail()).orElseThrow();
+
+            var jwtToken = jwtService.generateToken(user);
+            refreshTokenRepository.deleteByOwnerId(user.getId());
+
+            RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getEmail());
+
+            HashMap<String, String> userDetails = new HashMap<>();
+            userDetails.put("id", user.getId());
+            userDetails.put("refreshToken", refreshToken.getToken());
+            userDetails.put("email", user.getEmail());
+            userDetails.put("role", user.getRole());
+            userDetails.put("tier", user.getTier());
+            userDetails.put("credits", String.valueOf(user.getCredits()));
+
+            // Create a cookie with the JWT token
+            ResponseCookie cookie = ResponseCookie.from("jwt", jwtToken) // Set cookie name and value
+                    .httpOnly(true) // Prevents JavaScript access to the cookie
+                    .secure(true) // Ensures the cookie is sent only over HTTPS
+                    .path("/") // Makes the cookie available on all pages of the website
+                    .maxAge(3600) // Sets the cookie to expire in 1 hour
+                    .sameSite("Lax") // Helps mitigate CSRF attacks
+                    .build();
+
+            // Create the AuthenticationResponse to return
+            AuthenticationResponse response = AuthenticationResponse.builder()
+                    .access_token(jwtToken)
+                    .refresh_token(refreshToken.getToken())
+                    .userDetails(userDetails)
+                    .build();
+
+            // Return the response along with the cookie in the response headers
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.SET_COOKIE, cookie.toString()) // Add the cookie to the response
+                    .body(response); // Return the response body
+        } else {
+            throw new UsernameNotFoundException("Invalid user request..!!");
         }
 
     }

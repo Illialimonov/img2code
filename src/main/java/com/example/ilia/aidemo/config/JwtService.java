@@ -2,7 +2,9 @@ package com.example.ilia.aidemo.config;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
+import lombok.AllArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
@@ -15,7 +17,9 @@ import java.util.Map;
 import java.util.function.Function;
 
 @Service
+@AllArgsConstructor
 public class JwtService {
+    private final UserDetailsService userDetailsService;
 
     private static final String SECRET_KEY = "f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8";
 
@@ -44,8 +48,9 @@ public class JwtService {
                 .compact();
     }
 
-    public boolean isTokenValid(String token, UserDetails userDetails) {
+    public boolean isTokenValid(String token) {
         final String username = extractUsername(token);
+        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
         return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
     }
 
