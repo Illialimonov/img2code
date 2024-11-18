@@ -27,7 +27,6 @@ import java.util.Arrays;
 public class SecurityConfiguration {
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final AuthenticationProvider authenticationProvider;
-    private final JwtCookieAuthenticationFilter jwtCookieAuthenticationFilter;
 
 
     @Bean
@@ -57,7 +56,7 @@ public class SecurityConfiguration {
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration corsConfiguration = new CorsConfiguration();
         corsConfiguration.setAllowCredentials(true);
-        corsConfiguration.setAllowedOrigins(Arrays.asList("http://localhost:3000/", "https://img2code.vercel.app/"));
+        corsConfiguration.setAllowedOrigins(Arrays.asList("http://localhost:3000/", "https://img2code.vercel.app/", "https://img2code.xyz"));
         corsConfiguration.setAllowedHeaders(Arrays.asList("Origin", "Access-Control-Allow-Origin", "Content-Type",
                 "Accept", "Authorization", "X-Requested-With",
                 "Access-Control-Request-Method", "Access-Control-Request-Headers", "Access-Control-Allow-Headers", "ngrok-skip-browser-warning"));

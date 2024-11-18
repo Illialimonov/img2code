@@ -9,6 +9,7 @@ import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -42,11 +43,9 @@ public class AuthController {
 
 
 
-
     @PostMapping("/register")
-    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
-        service.register(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body("Account successfully created");
+    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request, BindingResult bindingResult) {
+        return service.registerWithBindingResults(request,bindingResult);
     }
 
     @Operation(summary = "before: authenticate")
@@ -55,11 +54,11 @@ public class AuthController {
         return ResponseEntity.ok(service.authenticate(request));
     }
 
-    @Operation(summary = "before: authenticate")
-    @PostMapping("/loginCOOKIES")
-    public ResponseEntity<AuthenticationResponse> authenticateCOOKIES(@RequestBody AuthenticationRequest request) {
-        return service.authenticateTESTCookies(request);
-    }
+//    @Operation(summary = "before: authenticate")
+//    @PostMapping("/loginCOOKIES")
+//    public ResponseEntity<AuthenticationResponse> authenticateCOOKIES(@RequestBody AuthenticationRequest request) {
+//        return service.authenticateTESTCookies(request);
+//    }
 
     @Operation(summary = "send the code to email to change the password. Then insert to /changepassword below.")
     @PostMapping("/reset")

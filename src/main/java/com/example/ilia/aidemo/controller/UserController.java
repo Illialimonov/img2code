@@ -36,16 +36,6 @@ public class UserController {
         return userService.getCurrentUser().getEmail();
     }
 
-    @GetMapping("/cookie")
-    public String yourMethod(@CookieValue(name = "jwt", required = false) String jwtToken) {
-        if (jwtToken == null) {
-            // Handle the case where the JWT cookie is not present
-            throw new RuntimeException("JWT token is missing");
-        }
-
-        // Use the JWT token (e.g., validate it, parse it, etc.)
-        return "Token retrieved from cookie: " + jwtToken;
-    }
 
     @PostMapping("/contact-us")
     public ResponseEntity<?> contact(@RequestBody ContactUsDTO contactUsDTO) {

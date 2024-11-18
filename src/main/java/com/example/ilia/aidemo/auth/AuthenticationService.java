@@ -28,11 +28,14 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -52,10 +55,50 @@ public class AuthenticationService {
     private final SendEmailService sendEmailService;
 
 
-
     public void register(RegisterRequest input) {
         if (userRepository.existsByEmail(input.getEmail())) {
             throw new RuntimeException("User with this email already exists.");
+        }
+
+
+        User user = new User();
+        user.setEmail(input.getEmail());
+        user.setPassword(passwordEncoder.encode(input.getPassword()));
+        user.setRole("ROLE_USER");
+        user.setCredits(10);
+        user.setTier("FREE");
+        user.setSubscriptionId("none");
+
+
+        userRepository.save(user);
+
+    }
+
+    public ResponseEntity<?> registerWithBindingResults(RegisterRequest input, BindingResult bindingResult) {
+        if (userRepository.existsByEmail(input.getEmail())) {
+            throw new RuntimeException("User with this email already exists.");
+        }
+
+        if (bindingResult.hasErrors()) {
+            // Create a JSON-like structure to hold errors
+            HashMap<String, HashMap<String, String>> responseJSON = new HashMap<>();
+            HashMap<String, String> errorsJSON = new HashMap<>();
+
+            // Iterate through all errors and add them to the JSON
+            bindingResult.getAllErrors().forEach(error -> {
+                if (error instanceof FieldError) {
+                    // Extract field name and error message
+                    String fieldName = ((FieldError) error).getField();
+                    String errorMessage = error.getDefaultMessage();
+                    errorsJSON.put(fieldName, errorMessage);
+                } else {
+                    // Handle global errors (not specific to a field)
+                    errorsJSON.put(error.getObjectName(), error.getDefaultMessage());
+                }
+            });
+
+            responseJSON.put("errors", errorsJSON);
+            return ResponseEntity.badRequest().body(responseJSON);
         }
 
         User user = new User();
@@ -68,12 +111,14 @@ public class AuthenticationService {
 
 
         userRepository.save(user);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body("Account successfully created");
     }
 
 
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
-        Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(),request.getPassword()));
-        if(authentication.isAuthenticated()) {
+        Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+        if (authentication.isAuthenticated()) {
             var user = userRepository.findByEmail(request.getEmail()).orElseThrow();
 
             var jwtToken = jwtService.generateToken(user);
@@ -83,11 +128,11 @@ public class AuthenticationService {
             RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getEmail());
 
 
-            HashMap<String,String> userDetails = new HashMap<>();
+            HashMap<String, String> userDetails = new HashMap<>();
             userDetails.put("id", user.getId());
             userDetails.put("refreshToken", refreshToken.getToken());
             userDetails.put("email", user.getEmail());
-            userDetails.put("role",user.getRole());
+            userDetails.put("role", user.getRole());
             userDetails.put("tier", user.getTier());
             userDetails.put("credits", String.valueOf(user.getCredits()));
 
@@ -101,6 +146,34 @@ public class AuthenticationService {
         } else {
             throw new UsernameNotFoundException("invalid user request..!!");
         }
+
+    }
+
+    public AuthenticationResponse OAuthLogin(AuthenticationRequest request) {
+        var user = userRepository.findByEmail(request.getEmail()).orElseThrow();
+
+        var jwtToken = jwtService.generateToken(user);
+
+        refreshTokenRepository.deleteByOwnerId(user.getId());
+
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getEmail());
+
+
+        HashMap<String, String> userDetails = new HashMap<>();
+        userDetails.put("id", user.getId());
+        userDetails.put("refreshToken", refreshToken.getToken());
+        userDetails.put("email", user.getEmail());
+        userDetails.put("role", user.getRole());
+        userDetails.put("tier", user.getTier());
+        userDetails.put("credits", String.valueOf(user.getCredits()));
+
+
+        return AuthenticationResponse.builder()
+                .access_token(jwtToken)
+                .refresh_token(refreshToken.getToken())
+                .userDetails(userDetails)
+                .build();
+
 
     }
 
@@ -152,7 +225,6 @@ public class AuthenticationService {
     }
 
 
-
     public AuthenticationResponse refreshToken(RefreshTokenRequestDTO refreshTokenRequestDTO) {
         Optional<RefreshToken> optionalRefreshToken = refreshTokenService.findByToken(refreshTokenRequestDTO.getToken());
 
@@ -179,11 +251,11 @@ public class AuthenticationService {
 
 
         // Create and return the response containing the new access token and the refresh token
-        HashMap<String,String> userDetails = new HashMap<>();
+        HashMap<String, String> userDetails = new HashMap<>();
         userDetails.put("id", user.getId());
         userDetails.put("refreshToken", refreshToken.getToken());
         userDetails.put("email", user.getEmail());
-        userDetails.put("role",user.getRole());
+        userDetails.put("role", user.getRole());
         userDetails.put("tier", user.getTier());
         userDetails.put("credits", String.valueOf(user.getCredits()));
 
@@ -197,11 +269,9 @@ public class AuthenticationService {
     }
 
     public ResponseEntity<?> loginWithGoogle(String credentials) throws GeneralSecurityException, IOException {
-        // Extract client_id and credentials from the request
-        // GoogleIdTokenVerifier to verify the Google token
-        //TODO hardcode client_id
 
-        GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), GsonFactory.getDefaultInstance()).setAudience(Collections.singletonList("855267889071-rv29pbdp4douh43cdfq4r0j7m6vphmhg.apps.googleusercontent.com"
+
+        GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), GsonFactory.getDefaultInstance()).setAudience(Collections.singletonList("345003367363-6rrfjbttfa6370pnvgd20tps0jg6u8aa.apps.googleusercontent.com"
                 )) // Use clientId from request
                 .build();
 
@@ -233,7 +303,7 @@ public class AuthenticationService {
             }
 
 
-            return ResponseEntity.ok(authenticate(new AuthenticationRequest(email, credentials)));
+            return ResponseEntity.ok(OAuthLogin((new AuthenticationRequest(email, credentials))));
 
         }
         return ResponseEntity.badRequest().body("Invalid ID token.");
@@ -259,28 +329,29 @@ public class AuthenticationService {
             register(new RegisterRequest(String.valueOf(userIdFromAccessToken), email));
         }
 
-        return ResponseEntity.ok(authenticate(new AuthenticationRequest(email, String.valueOf(userIdFromAccessToken))));
+        return ResponseEntity.ok(OAuthLogin(new AuthenticationRequest(email, String.valueOf(userIdFromAccessToken))));
 
     }
 
-    public void sendPassToken(String email){
-        if (userRepository.findByEmail(email).isEmpty()){
+    public void sendPassToken(String email) {
+        if (userRepository.findByEmail(email).isEmpty()) {
             throw new RuntimeException("User was not found");
         }
 
         PasswordResetTokens token = new PasswordResetTokens();
         token.setOwner(userRepository.findByEmail(email).orElseThrow());
-        token.setExpired_at(new Date(System.currentTimeMillis()+300000));
+        token.setExpired_at(new Date(System.currentTimeMillis() + 300000));
         String resetCode = generateCode();
         token.setToken(resetCode);
         passwordResetTokensRepository.save(token);
         sendEmailService.sendResetPassword(email, resetCode);
     }
 
-    public PasswordResetTokens getLatestToken(NewPassDTO request){
+    public PasswordResetTokens getLatestToken(NewPassDTO request) {
         List<Optional<PasswordResetTokens>> list = passwordResetTokensRepository.findTopByUserIdOrderByExpiredAtDesc(userRepository.findByEmail(request.getEmail()).orElseThrow().getId());
-        return list.get(list.size()-1).orElseThrow();
+        return list.get(list.size() - 1).orElseThrow();
     }
+
     public void changePass(NewPassDTO request) {
         // Retrieve the latest token once
         PasswordResetTokens resetToken = getLatestToken(request);
@@ -319,4 +390,6 @@ public class AuthenticationService {
             throw new RuntimeException("Invalid token");
         }
     }
+
+
 }

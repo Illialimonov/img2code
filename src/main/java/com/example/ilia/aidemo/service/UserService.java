@@ -25,8 +25,10 @@ public class UserService {
 
     @Autowired
     private UserRepository userRepository;
+
     @Autowired
     private AuthorizedUserActivityRepository authorizedUserActivityRepository;
+
     @Autowired
     private final SendEmailService sendEmailService;
 
