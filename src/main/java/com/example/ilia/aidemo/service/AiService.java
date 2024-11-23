@@ -87,7 +87,6 @@ public class AiService {
                     authorizedUserActivity.setCodeUrl(code_url);
                     authorizedUserActivity.setFileUrl(file_url);
 
-
                     authorizedUserActivityRepository.save(authorizedUserActivity);
                 } else {
                     throw new InsufficientCreditsException("You do not have enough credits");
@@ -111,6 +110,7 @@ public class AiService {
                 unauthorizeduserActivityRepository.save(unauthorizedUserActivity);
                 storageService.deleteImageFromBucket(originalFileName);
                 log.info("The photo was deleted from the bucket.");
+                Thread.sleep(7000);
             }
 
 
@@ -152,8 +152,6 @@ public class AiService {
             planName = Product.retrieve(productId).getMetadata().get("name");
         }
 
-
-
         //TODO in db do not set tier manually, but rather extract it from the subscription
 
         //Handle file sizes
@@ -171,12 +169,12 @@ public class AiService {
         }
 
         if (planName.equals("Free")) {
-            Thread.sleep(13000);
+            Thread.sleep(7000);
         }
 
         if (planName.equals("Premium")) {
             System.out.println("are waiting here?");
-            Thread.sleep(5000);
+            Thread.sleep(3000);
         }
     }
 

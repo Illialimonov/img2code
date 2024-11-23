@@ -18,6 +18,7 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -46,6 +47,14 @@ public class UserService {
         }
     }
 
+    public Optional<User> getCurrentUserOptional() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication.getName().equals("anonymousUser")) return Optional.empty();
+        UserDetails userDetails = (User) authentication.getPrincipal();
+        return userRepository.findByEmail(userDetails.getUsername());
+
+    }
+
     public List<User> getAllUsers() {
         return userRepository.findAll();
     }
@@ -64,7 +73,7 @@ public class UserService {
 
     public List<HistoryDTO> getHistory() {
         User user = getCurrentUser();
-        List<AuthorizedUserActivity> userActivityList= authorizedUserActivityRepository.findAllByUserId(user.getId());
+        List<AuthorizedUserActivity> userActivityList = authorizedUserActivityRepository.findAllByUserId(user.getId());
         return userActivityList.stream().map(this::convertToDTO).toList();
     }
 

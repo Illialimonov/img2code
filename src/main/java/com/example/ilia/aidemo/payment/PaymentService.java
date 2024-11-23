@@ -5,24 +5,19 @@ import com.example.ilia.aidemo.payload.StripeLinksResponse;
 import com.example.ilia.aidemo.payload.StripeSubscriptionResponse;
 import com.example.ilia.aidemo.repository.UserRepository;
 import com.example.ilia.aidemo.service.UserService;
-import com.stripe.Stripe;
 import com.stripe.exception.InvalidRequestException;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Event;
-import com.stripe.model.LineItem;
 import com.stripe.model.Product;
 import com.stripe.model.Subscription;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.Webhook;
 import com.stripe.param.SubscriptionUpdateParams;
-import com.stripe.param.checkout.SessionCreateParams;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import com.stripe.model.checkout.Session; // Ensure you're importing the right class
-import com.stripe.net.ApiResource; // For generic API resource access
 
 
 import java.net.URLEncoder;
@@ -31,8 +26,8 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @AllArgsConstructor
@@ -98,15 +93,17 @@ public class PaymentService {
         return stripeLinksResponse;
     }
 
-    private String getPremiumSubscription(User user) {
-        String initialLink = "https://buy.stripe.com/test_dR6cPggea7rEapW145";
-        return initialLink+"?prefilled_email="+ URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8)
-                +"&client_reference_id="+user.getId();
-    }
+
 
     public Subscription getSubscriptionFromJWT() throws StripeException {
-        User user = userService.getCurrentUser();
+        Optional<User> userOptional = userService.getCurrentUserOptional();
+        if (userOptional.isEmpty()) return null;
+        User user = userOptional.get();
         String subscriptionId = user.getSubscriptionId();
+
+        if(subscriptionId.equals("none")){
+            return null;
+        }
 
 
         try {
@@ -125,8 +122,14 @@ public class PaymentService {
 
 
     private String getProSubscription(User user) {
-        String initialLink = "https://buy.stripe.com/test_28o3eGe629zM2Xu4gi";
+        String initialLink = "https://buy.stripe.com/dR6aEX23f7qWeIw8ww";
         return initialLink+"?prefilled_email="+URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8)
+                +"&client_reference_id="+user.getId();
+    }
+
+    private String getPremiumSubscription(User user) {
+        String initialLink = "https://buy.stripe.com/cN2dR9eQ1cLgcAo4gh";
+        return initialLink+"?prefilled_email="+ URLEncoder.encode(user.getEmail(), StandardCharsets.UTF_8)
                 +"&client_reference_id="+user.getId();
     }
 
@@ -144,16 +147,22 @@ public class PaymentService {
     }
 
     public StripeSubscriptionResponse getSubscriptionInfo() throws StripeException {
+
         StripeSubscriptionResponse stripeSubscriptionResponse = new StripeSubscriptionResponse();
 
         Subscription subscription = getSubscriptionFromJWT();
+
+        if(subscription==null) return handleEmptySubscription();
+
         String productId = subscription.getItems().getData().get(0).getPrice().getProduct();
         String planName = Product.retrieve(productId).getMetadata().get("name");
         String status = subscription.getStatus();
         String activeUntil = convertLongToDate(subscription.getCurrentPeriodEnd());
         boolean autoRenew = !subscription.getCancelAtPeriodEnd();
 
-        if(!autoRenew) planName = "FREE";
+        if(!autoRenew) planName = "FREE"; //?????
+
+
 
         stripeSubscriptionResponse.setPlanName(planName);
         stripeSubscriptionResponse.setStatus(status);
@@ -162,6 +171,15 @@ public class PaymentService {
 
         return stripeSubscriptionResponse;
 
+    }
+
+    private StripeSubscriptionResponse handleEmptySubscription() {
+        StripeSubscriptionResponse stripeSubscriptionResponse = new StripeSubscriptionResponse();
+        stripeSubscriptionResponse.setPlanName("FREE");
+        stripeSubscriptionResponse.setStatus("NOT ACTIVE");
+        stripeSubscriptionResponse.setActiveUntil(null);
+        stripeSubscriptionResponse.setAutoRenew(false);
+        return stripeSubscriptionResponse;
     }
 
     private String convertLongToDate(Long currentPeriodEnd) {
